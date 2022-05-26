@@ -30,7 +30,7 @@ pubs[is.na(ds_count), ds_count:=0]
 pubs[PMID == 24513584, PMID:=24516880]
 
 # Subset columns to keep key information per paper
-m <- unique(pubs[, .(PMID, Public_ss, ds_count, association_count)])
+m <- unique(pubs[, .(PMID, Public_ss, ds_count)])
 
 
 # Get citation info
@@ -47,19 +47,40 @@ citinfo <- lapply(0:5, function(x){
 })
 citinfo <- rbindlist(citinfo)
 
-# Store data
-fwrite(pubs, "../data/Publications_20220525.tsv", sep="\t")
-fwrite(citinfo, "../data/Citation_info_20220525.tsv", sep="\t")
-
 # Extract key data for analysis
-cit <- citinfo[, .(pmid, journal, is_research_article, relative_citation_ratio, nih_percentile, citation_count, citations_per_year, expected_citations_per_year, field_citation_rate)] 
+cit <- citinfo[, .(pmid, journal, year, is_research_article, relative_citation_ratio, nih_percentile, citation_count, citations_per_year, expected_citations_per_year, field_citation_rate)] 
 
 m <- merge(m, cit, by.x="PMID", by.y="pmid")
 
+jn <- unique(m$journal)
+get_impactfactor(jn)
 
+# Store data
+fwrite(pubs, "../data/Publications_20220525.tsv", sep="\t")
+fwrite(citinfo, "../data/Citation_info_20220525.tsv", sep="\t")
+fwrite(m, "../data/Summary_info_20220525.tsv", sep="\t")
+
+# Questions about the data:
+
+# 1 - What's the proportion of studies with shared or not shared data?
 # Most studies don't have shared summary statistics in GWAS catalog
-ggplot(m, aes(x=public_ss))+ geom_bar(stat="count") + xlab("Summary statistics available?")  
+ggplot(m, aes(x=Public_ss))+ geom_bar(stat="count") + xlab("Summary statistics available?")  
 
-ggplot(m, aes(x=Year, fill=public_ss))+ geom_bar(position = "dodge", stat="count") + xlab("Summary statistics available?") 
+# 2 - How did sharing change over time?
+ggplot(m, aes(x=year, fill=Public_ss))+ geom_bar(position = "dodge", stat="count") + xlab("Summary statistics available?") 
+
+# 3 - Do sharing result in higher citations?
+ggplot(m, aes(x = Public_ss, y=citations_per_year)) + geom_boxplot() + xlab("Summary statistics available?") + ylab("Citations per year")
+
+# 4 - Does this change over time?
+ggplot(m, aes(x=as.factor(year), y=citations_per_year, fill=Public_ss))+ geom_boxplot() + ylab("Citations per year")
+
+# 5 - Are there differences between journals?
+j_50 <- unique(m[, .N, by=journal][N > 50, journal])
+#hist(m[, .N, by=journal]$N, breaks=200)
+mj <- m[journal %in% j_50 & journal != "Nature"]
+ggplot(mj, aes(x=journal, y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Journal (20+ papers)") + ylab("Citations per year") + theme(axis.text.x = element_text(angle = -45, hjust=0))
+
+# 6 - 
 
 
