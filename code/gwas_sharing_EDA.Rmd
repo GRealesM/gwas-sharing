@@ -122,6 +122,13 @@ Most studies don't have shared summary statistics in GWAS catalog. Approximately
 ggplot(m, aes(x=year, fill=Public_ss))+ geom_bar(position = "dodge", stat="count") + xlab("Summary statistics available?") 
 ```
 
+Or as a proportion:
+
+```{r}
+ggplot(m, aes(x=year, fill=Public_ss))+ geom_bar(position = "fill", stat="count") + xlab("Summary statistics available?") 
+```
+
+
 It looks like sharing is gaining momentum, but still represent the minority of all reported studies.
 
 ## 3 - Do sharing result in higher citations overall?
@@ -162,6 +169,21 @@ We'd assume that IF will result with more citations, but is it associated with m
 ```{r}
 unique(m[, .(SJR, journal)]) %>% .[is.na(SJR)]
 ggplot(m, aes(x = Public_ss, y = SJR)) + geom_boxplot()+ ylab("SJR Impact factor") 
-ggplot(m, aes(x = H_index, y = citations_per_year, colour = Public_ss)) + geom_point(alpha = 0.5)+ xlab("H Index") + ylab("Citations per year") 
 ```
+
+Papers published in higher impact factor journals tend to share more. This might be due to higher pressure and commitment from larger journals with open science?
+
+
+Let's take a closer look at the top journals by IF
+
+```{r}
+topj <- m[ , .(journal, SJR)] %>% unique %>% .[order(SJR, decreasing = TRUE)] %>% .[1:10, journal]
+mtop <- m[journal %in% topj]
+ggplot(mtop, aes(x=journal, y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 Journals by SJR)") + ylab("Citations per year") + theme(axis.text.x = element_text(angle = -45, hjust=0))
+```
+
+So there are some notable differences among top journals, from having almost no shared datasets (NEJM), to mostly share (Nat Med). For Cell, Nature and Science, sharing or not doesn't seem to make a great difference, although for Nature Genetics, Nat Med and Nature Neuroscience it seems that papers with shared data gets more citations.
+
+
+This is of course work in progress. I'll continue working on this EDA when I'm back. Naturally, feel free to play around with the data if you wish/have the time.
 
