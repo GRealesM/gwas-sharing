@@ -1,7 +1,7 @@
 ---
 title: "GWAS sharing EDA"
 author: "Guillermo Reales"
-date: "2022-05-31"
+date: "2022-06-10"
 output: html_document
 ---
 
@@ -24,7 +24,7 @@ library(iCiteR)
 ```{r echo = FALSE}
 pubs <- fread("../data/Publications_20220525.tsv")
 citinfo <- fread("../data/Citation_info_20220525.tsv")
-m <- fread("../data/Summary_info_20220530.tsv", na.strings = "NA")
+m <- fread("../data/Main_data_20220610.tsv", na.strings = "NA")
 ```
 
 
@@ -32,7 +32,7 @@ m <- fread("../data/Summary_info_20220530.tsv", na.strings = "NA")
 ## List of publications and available summary statistics downloaded on 2022-05-24
 pubs <- fread("../data/gwas-catalog-v1.0.3-studies-r2022-05-17.tsv", sep="\t") # Published studies
 ss <- fread("../data/list_gwas_summary_statistics_24_May_2022.csv")  # Studies with summary statistics
-SCR <- fread("../data/scimagojr_2021.csv")
+SCR <- fread("../data/scimagojr_2021.csv") # SCimagoJR dataset with journal impact factors for year 2021
 NLM <- fread("../data/NLM_journals.tsv") # NLM catalog with journal names, ISSN, and abbreviations
 
 ## Replace key column names by something more useful
@@ -49,9 +49,9 @@ pubs[is.na(ds_count), ds_count:=0]
 pubs[PMID == 24513584, PMID:=24516880]
 
 ## Subset columns to keep key information per paper
-m <- unique(pubs[, .(PMID, Public_ss, ds_count)])
+m <- unique(pubs[, .(PMID, Public_ss, ds_count, DATE, First_Author)])
 
-# Get citation info
+# Get citation info. Retrieving is capped at 1000 articles, so we'll run it 6 times
 citinfo <- lapply(0:5, function(x){
 	start_idx = (x * 1000) + 1
 	if(x == 0) start_idx = 1
@@ -65,8 +65,7 @@ citinfo <- lapply(0:5, function(x){
 citinfo <- rbindlist(citinfo)
 
 # Extract key data for analysis and merge both datasets
-cit <- citinfo[, .(pmid, journal, year, is_research_article, relative_citation_ratio, nih_percentile, citation_count, citations_per_year, expected_citations_per_year, field_citation_rate)] 
-m <- merge(m, cit, by.x="PMID", by.y="pmid")
+m <- merge(m, citinfo, by.x="PMID", by.y="pmid")
 
 # Match Journal Abbreviations from GWAS catalog with journal names 
 
@@ -92,14 +91,44 @@ setnames(m.guides, "Title", "SCR.title")
 m <- merge(m, m.guides, by.x = "journal", by.y = "MedAbbr", all.x = TRUE) # Merge with guides to get the journal title
 sSCR <- SCR[ Title %in% m$SCR.title, .(Title, SJR, `SJR Best Quartile`, `H index`, Publisher)][, SJR:=as.numeric(gsub(",", ".", SJR))] # Select columns to use. Also replace comma for numeric SJR
 m <- merge(m, sSCR, by.x = "SCR.title", by.y="Title", all.x = TRUE) 
-setnames(m, c("H index", "SJR Best Quartile"), c("H_index", "SJR_Best_Quartile"))
+setnames(m, c("H index", "SJR Best Quartile", "journal", "DATE", "year", "title", "authors"), c("H_index", "SJR_Best_Quartile","Journal", "Date", "Year", "Title", "Authors"))
 
+# Order m
+setcolorder(m, c("PMID", "Public_ss", "ds_count", "Year", "First_Author", "Title", "Authors", "Date", "citation_count","citations_per_year", "relative_citation_ratio", "expected_citations_per_year", "cited_by", "references", "doi", "Journal", "SJR", "H_index", "SJR_Best_Quartile", "Publisher"))
+
+# We want to get the citation history of the articles, we'll extract this info in the same fashion as we did previously. We'll extract citing articles from the `cited_by` column and retrieve their year, then we'll be able to count number of citations each year.
+cith <- m[,.(PMID, cited_by)]
+cith[, paste0("V", 1:6770):= tstrsplit(cited_by, " ")] # Max citations is 6770, so we'll need that number of columns
+cith <- melt(cith, id.vars = "PMID", measure.vars = paste0("V", 1:6770))
+cith <- na.omit(cith)
+cith[, variable:=NULL]
+lup <- unique(cith$value) # Lookup items
+
+#### NEED TO RUN ICITER FOR 188k VALUES. THIS WILL DEFINITELY TAKE A WHILE, SO I'LL DO IT LATER AND LEAVE IT RUNNING
+citing.items <- lapply(0:188, function(x){
+	start_idx = (x * 1000) + 1
+	if(x == 0) start_idx = 1
+	end_idx = start_idx + 999
+	if(end_idx > length(lup)) end_idx = length(lup)
+	
+	pmids <- lup[start_idx:end_idx]
+	message("Getting metrics for papers ", start_idx, " to ", end_idx) 
+	papers <- get_metrics(pmids)
+})
+citing.items <- rbindlist(citing.items)
+citing.items <- citing.items[,.(pmid, year)]
+citing.items$pmid <- as.character(citing.items$pmid)
+cith <- merge(cith, citing.items, by.x = "value", by.y = "pmid")
+# Now create a summary
+sum.cith <- cith[, .(count = .N), by=c("PMID", "year")]
 
 # Store data
 fwrite(pubs, "../data/Publications_20220525.tsv", sep="\t")
 fwrite(citinfo, "../data/Citation_info_20220525.tsv", sep="\t")
-fwrite(m, "../data/Summary_info_20220530.tsv", sep="\t", na = NA)
+fwrite(m, "../data/Main_data_20220610.tsv", sep="\t", na = NA)
+fwrite(sum.cith, "../data/Citations_per_year_20220611.tsv", sep="\t")
 ```
+
 Let's take a look at the datasets
 
 
