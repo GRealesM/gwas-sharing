@@ -25,6 +25,7 @@ library(iCiteR)
 pubs <- fread("../data/Publications_20220525.tsv")
 citinfo <- fread("../data/Citation_info_20220525.tsv")
 m <- fread("../data/Main_data_20220610.tsv", na.strings = "NA")
+sum.cith <- fread("../data/Citations_per_year_20220611.tsv")
 ```
 
 
@@ -104,7 +105,7 @@ cith <- na.omit(cith)
 cith[, variable:=NULL]
 lup <- unique(cith$value) # Lookup items
 
-#### NEED TO RUN ICITER FOR 188k VALUES. THIS WILL DEFINITELY TAKE A WHILE, SO I'LL DO IT LATER AND LEAVE IT RUNNING
+
 citing.items <- lapply(0:188, function(x){
 	start_idx = (x * 1000) + 1
 	if(x == 0) start_idx = 1
@@ -134,7 +135,17 @@ Let's take a look at the datasets
 
 # Data visualisation
 
-We have several initial questions about the data
+We have several initial questions about the data. 
+
+Note that we'll use citations per year as a response variable, but also relative citation ratio (RCR), as it is a article level and field independent metric that uses co-citation network to field- and time-normalise the number of citations a given article has received.
+
+However, as we could expect, RCR is highly correlated with citation count and citations per year:
+
+```{r}
+plot(m$citation_count, m$relative_citation_ratio)
+plot(m$citations_per_year, m$relative_citation_ratio)
+```
+
 
 ## 1 - What's the proportion of studies with shared or not shared data?
 
@@ -148,13 +159,13 @@ Most studies don't have shared summary statistics in GWAS catalog. Approximately
 ## 2 - How did sharing change over time?
 
 ```{r}
-ggplot(m, aes(x=year, fill=Public_ss))+ geom_bar(position = "dodge", stat="count") + xlab("Summary statistics available?") 
+ggplot(m, aes(x=Year, fill=Public_ss))+ geom_bar(position = "dodge", stat="count") + xlab("Summary statistics available?") 
 ```
 
 Or as a proportion:
 
 ```{r}
-ggplot(m, aes(x=year, fill=Public_ss))+ geom_bar(position = "fill", stat="count") + xlab("Summary statistics available?") 
+ggplot(m, aes(x=Year, fill=Public_ss))+ geom_bar(position = "fill", stat="count") + xlab("Summary statistics available?") 
 ```
 
 
@@ -169,16 +180,27 @@ ggplot(m, aes(x = Public_ss, y=citations_per_year)) + geom_boxplot() + xlab("Sum
 ## 4 - Does this change over time?
 
 ```{r fig.height= 6, fig.width=10}
-ggplot(m, aes(x=as.factor(year), y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Year") + ylab("Citations per year")
+ggplot(m, aes(x=as.factor(Year), y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Year") + ylab("Citations per year")
 ```
+
+
+```{r fig.height= 6, fig.width=10}
+ggplot(m, aes(x=as.factor(Year), y=relative_citation_ratio, fill=Public_ss))+ geom_boxplot() + xlab("Year") + ylab("RCR")
+```
+
+
+As we can see RCR is highly correlated with CPY, but we can see two things:
+
+1. RCR for GWAS papers seem to be declining over time (consistent with GWAS coming of age and not being a novel thing anymore).
+2. There seems to be a consistent positive effect of sharing over the years.
 
 ## 5 - Are there differences between journals?
 
 We know that some journals are more cited than others and some publish more GWAS than others. Let's take a look at the journal profile
 
 ```{r}
-m[, .N, by=journal][order(-N)]
-ggplot(m[, .N, by=journal], aes(x=N)) + geom_histogram(bins = 60) + xlab("Studies per journal") + ylab("Number of Journals")
+m[, .N, by=Journal][order(-N)]
+ggplot(m[, .N, by=Journal], aes(x=N)) + geom_histogram(bins = 60) + xlab("Studies per journal") + ylab("Number of Journals")
 ```
 
 We see a huge imbalance in journals and papers, with the top 10 journals containing \~40% of the studies, while most journals have very few studies (\~24% of journals have less than 10 studies).
@@ -186,9 +208,9 @@ We see a huge imbalance in journals and papers, with the top 10 journals contain
 *Nature Genetics* is by far the journal with most GWAS in GWAS catalog.
 
 ```{r}
-top10 <- m[, .N, by=journal][order(-N)][1:10, journal]
-mj <- m[journal %in% top10 ]
-ggplot(mj, aes(x=journal, y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 most papers in GWAS catalog)") + ylab("Citations per year") + theme(axis.text.x = element_text(angle = -45, hjust=0))
+top10 <- m[, .N, by=Journal][order(-N)][1:10, Journal]
+mj <- m[Journal %in% top10 ]
+ggplot(mj, aes(x=Journal, y=relative_citation_ratio, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 most papers in GWAS catalog)") + ylab("RCR") + theme(axis.text.x = element_text(angle = -45, hjust=0))
 ```
 
 # 6 - What about Impact Factor? 
@@ -196,7 +218,7 @@ ggplot(mj, aes(x=journal, y=citations_per_year, fill=Public_ss))+ geom_boxplot()
 We'd assume that IF will result with more citations, but is it associated with more sharing? I downloaded 2021 data from Scimago Journal and Country Rank (https://www.scimagojr.com/) to get some bibliometrics on the journals.  **Note:** 27 Journals didn't have SJR, either because they're too new or because they've been discontinued
 
 ```{r}
-unique(m[, .(SJR, journal)]) %>% .[is.na(SJR)]
+unique(m[, .(SJR, Journal)]) %>% .[is.na(SJR)]
 ggplot(m, aes(x = Public_ss, y = SJR)) + geom_boxplot()+ ylab("SJR Impact factor") 
 ```
 
@@ -206,13 +228,33 @@ Papers published in higher impact factor journals tend to share more. This might
 Let's take a closer look at the top journals by IF
 
 ```{r}
-topj <- m[ , .(journal, SJR)] %>% unique %>% .[order(SJR, decreasing = TRUE)] %>% .[1:10, journal]
-mtop <- m[journal %in% topj]
-ggplot(mtop, aes(x=journal, y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 Journals by SJR)") + ylab("Citations per year") + theme(axis.text.x = element_text(angle = -45, hjust=0))
+topj <- m[ , .(Journal, SJR)] %>% unique %>% .[order(SJR, decreasing = TRUE)] %>% .[1:10, Journal]
+mtop <- m[Journal %in% topj]
+ggplot(mtop, aes(x=Journal, y=relative_citation_ratio, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 Journals by SJR)") + ylab("RCR") + theme(axis.text.x = element_text(angle = -45, hjust=0))
 ```
 
 So there are some notable differences among top journals, from having almost no shared datasets (NEJM), to mostly share (Nat Med). For Cell, Nature and Science, sharing or not doesn't seem to make a great difference, although for Nature Genetics, Nat Med and Nature Neuroscience it seems that papers with shared data gets more citations.
 
+This may mean that top journals do not necessarily enforce data sharing policies (at least, not of GWAS sumstats to GWAS catalog), or haven't always done so. However, when published in the same top journals, sharers seem to get more citations.
 
-This is of course work in progress. I'll continue working on this EDA when I'm back. Naturally, feel free to play around with the data if you wish/have the time.
+Has this changed over time?
+
+Let's take a look at the patterns of the top journals in the first and last half of the 2010s (since few papers shared data before 2009).
+
+```{r}
+ggplot(mtop[Year >= 2010 & Year <= 2014 ], aes(x=Journal, y=relative_citation_ratio, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 Journals by SJR)") + ylab("RCR") + theme(axis.text.x = element_text(angle = -45, hjust=0)) + ggtitle("RCR in Top IF journals (2010-2014)")
+```
+
+```{r}
+ggplot(mtop[Year >= 2015 & Year <= 2019 ], aes(x=Journal, y=relative_citation_ratio, fill=Public_ss))+ geom_boxplot() + xlab("Journal (Top 10 Journals by SJR)") + ylab("RCR") + theme(axis.text.x = element_text(angle = -45, hjust=0)) + ggtitle("RCR in Top IF journals (2015-2019)")
+```
+
+```{r}
+table(mtop[Year >= 2010 & Year <= 2014, Public_ss])
+table(mtop[Year >= 2015 & Year <= 2019, Public_ss])
+```
+
+
+SO there seems to be a temporary effect in the 2010s. It looks like fewer papers were published in 2015-2019, more of them shared summary statistics but this wasn't reflected in RCR as much as it did in 2010-2014. This could be explained by the general GWAS trend towards being less often published in top journals over time and getting fewer citations.
+
 
