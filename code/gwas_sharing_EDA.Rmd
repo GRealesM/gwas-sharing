@@ -1,7 +1,7 @@
 ---
 title: "GWAS sharing EDA"
 author: "Guillermo Reales"
-date: "2022-06-10"
+date: "2022-06-14"
 output: html_document
 ---
 
@@ -130,7 +130,14 @@ fwrite(m, "../data/Main_data_20220610.tsv", sep="\t", na = NA)
 fwrite(sum.cith, "../data/Citations_per_year_20220611.tsv", sep="\t")
 ```
 
-Let's take a look at the datasets
+For the most subsequent analyses, we'll consider full years only, so we'll remove papers published in 2022 (they haven't had enough time to accrue many citations anyway).
+
+```{r}
+m.full <- copy(m)
+m <- m[Year < 2022]
+```
+
+Let's take a look at the datasets.
 
 
 # Data visualisation
@@ -147,14 +154,18 @@ plot(m$citations_per_year, m$relative_citation_ratio)
 ```
 
 
-## 1 - What's the proportion of studies with shared or not shared data?
+
+
+
+## 1 - What's the proportion of studies with shared or not shared data in GWAS catalog?
 
 ```{r}
-table(m$Public_ss) / nrow(m)
-ggplot(m, aes(x=Public_ss))+ geom_bar(stat="count") + xlab("Summary statistics available?") 
+table(m.full$Public_ss) / nrow(m.full)
+ggplot(m.full, aes(x=Public_ss))+ geom_bar(stat="count") + xlab("Summary statistics available?") 
 ```
 
 Most studies don't have shared summary statistics in GWAS catalog. Approximately 1/10 studies share summary statistics.
+
 
 ## 2 - How did sharing change over time?
 
@@ -177,21 +188,46 @@ It looks like sharing is gaining momentum, but still represent the minority of a
 ggplot(m, aes(x = Public_ss, y=citations_per_year)) + geom_boxplot() + xlab("Summary statistics available?") + ylab("Citations per year")
 ```
 
-## 4 - Does this change over time?
+## 4 - How have citation patterns changed over time?
 
-```{r fig.height= 6, fig.width=10}
-ggplot(m, aes(x=as.factor(Year), y=citations_per_year, fill=Public_ss))+ geom_boxplot() + xlab("Year") + ylab("Citations per year")
+It is no secret that GWAS used to be a bigger deal in the past that they are today. Have GWAS papers become less influential?
+
+```{r}
+ggplot(m, aes(x=as.factor(Year), y=log(relative_citation_ratio)))+ geom_boxplot() + xlab("Year") + ylab("log(RCR)")
+ggplot(m, aes(x=as.factor(Year), y=log(citations_per_year)))+ geom_boxplot() + xlab("Year") + ylab("log(Citations per year)")
+ggplot(m[!is.na(relative_citation_ratio)], aes(x=as.factor(Year), y=log(citations_per_year)))+ geom_boxplot() + xlab("Year") + ylab("log(Citations per year)")
 ```
 
+We've plotted RCR and CPY in the log scale, to make it easier to see the trend. In general, GWAS impact seems to peak in their early years (until ~2010) and then plateaued with a slightly decreasing trend. However, we see a peak in RCR and CPY in 2021. Note that many recent articles with few citations don't have a RCR. If we consider these papers, the trend is lost for CPY, since many papers without RCR do have few (or no) citations. However, if we consider papers with RCR data only, we also see the trend in CPY.
+
+But what happened in 2021? 
+
+```{r}
+m[Year == 2021 & !is.na(relative_citation_ratio), .(PMID, Public_ss, Title, relative_citation_ratio, citations_per_year)][order(relative_citation_ratio, decreasing = T)][1:15]
+```
+
+Of course, COVID! But not only that, we also have large studies on bipolar disorder, gut microbiome composition, blood biomarkers, prostate cancer, etc. 
+
+Note that among the first 15, the proportion of shared and non-shared is more or less balanced.
+
+
+We'll now explore the differences between sharing and non-sharing studies
 
 ```{r fig.height= 6, fig.width=10}
 ggplot(m, aes(x=as.factor(Year), y=relative_citation_ratio, fill=Public_ss))+ geom_boxplot() + xlab("Year") + ylab("RCR")
+
+```
+
+Let's try log scale
+
+```{r}
+ggplot(m, aes(x=as.factor(Year), y=log(relative_citation_ratio), fill=Public_ss))+ geom_boxplot() + xlab("Year") + ylab("RCR")
 ```
 
 
-As we can see RCR is highly correlated with CPY, but we can see two things:
+We can see two things:
 
-1. RCR for GWAS papers seem to be declining over time (consistent with GWAS coming of age and not being a novel thing anymore).
+1. RCR for GWAS papers seem to be declining/flattening over time (consistent with GWAS coming of age and not being a novel thing anymore).
 2. There seems to be a consistent positive effect of sharing over the years.
 
 ## 5 - Are there differences between journals?
@@ -224,6 +260,7 @@ ggplot(m, aes(x = Public_ss, y = SJR)) + geom_boxplot()+ ylab("SJR Impact factor
 
 Papers published in higher impact factor journals tend to share more. This might be due to higher pressure and commitment from larger journals with open science?
 
+Another potential explanation for this could be that large consortia working on large projects may get to publish on higher IF journals and get more citations, but they get the pressure to share from their funders rather than the journals themselves.
 
 Let's take a closer look at the top journals by IF
 
@@ -255,6 +292,37 @@ table(mtop[Year >= 2015 & Year <= 2019, Public_ss])
 ```
 
 
-SO there seems to be a temporary effect in the 2010s. It looks like fewer papers were published in 2015-2019, more of them shared summary statistics but this wasn't reflected in RCR as much as it did in 2010-2014. This could be explained by the general GWAS trend towards being less often published in top journals over time and getting fewer citations.
+So there seems to be a temporary effect in the 2010s. It looks like fewer papers were published in 2015-2019, more of them shared summary statistics but this wasn't reflected in RCR as much as it did in 2010-2014. This could be explained by the general GWAS trend towards being less often published in top journals over time and getting fewer citations.
+
+In any case, it looks like either top journals don't exert that much pressure on authors sharing their data -- or at least they share their data in a different platform and format!
+
+Although Journal impact factor is not a good proxy to individual article quality, we'd expect to see a correlation between citations (RCR) and the Impact factor of the journals they were published, and overall this seems to be the case.
+But does it look different between sharers and non-sharers?
+
+```{r}
+ggplot(m[Public_ss == "N"], aes(x = log(SJR), y = log(relative_citation_ratio))) + geom_point() + xlab("JIF") + ylab("RCR") + ggtitle("JIF vs. RCR in non-sharers")
+ggplot(m[Public_ss == "Y"], aes(x = log(SJR), y = log(relative_citation_ratio))) + geom_point() + xlab("JIF") + ylab("RCR") + ggtitle("JIF vs. RCR in sharers")
+```
+
+Both groups seem to show the same correlation, but it looks like sharers tend to concentrate around higher impact factors?
+
+
+```{r}
+plot(density(log(m[Public_ss == "N" & !is.na(SJR)]$SJR)), main = "SJR distribution of non-sharers")
+plot(density(log(m[Public_ss == "Y" & !is.na(SJR)]$SJR)), main = "SJR distribution of sharers")
+```
+
+And what about RCR?
+
+```{r}
+plot(density(log(m[Public_ss == "N" & !is.na(relative_citation_ratio)]$relative_citation_ratio)), main = "RCR distribution of non-sharers")
+plot(density(log(m[Public_ss == "Y" & !is.na(relative_citation_ratio)]$relative_citation_ratio)), main = "RCR distribution of sharers")
+```
+
+
+
+
+
+
 
 
