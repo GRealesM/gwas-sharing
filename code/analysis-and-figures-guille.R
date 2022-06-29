@@ -52,7 +52,8 @@ ggplot(x, aes(x=year,fill=Public_ss)) +
   #scale_fill_discrete(guide = guide_legend(reverse=TRUE), breaks = rev(levels(x$Public_ss)), labels=c("Yes", "No")) +
   background_grid(major="y")+
   theme(legend.position=c(0.05,0.96),legend.justification=c(0,1),legend.direction = "horizontal")
-ggsave("../figures/fig-obs-by-pub-year.tiff",height=6,width=7,units="in", bg="white")
+#ggsave("../figures/fig-obs-by-pub-year.tiff",height=6,width=7,units="in", bg="white")
+#ggsave("../figures/fig-obs-by-pub-year.png",height=6,width=7,units="in", bg="white")
 ## total observations increases with year, and sharing increases.
 ## Need to consider year as a potential confounder.
 
@@ -69,9 +70,9 @@ bot=ggplot(x[year<=2022], aes(x=year,y=y,col=Public_ss)) +
   background_grid(major="y") +
   theme(legend.position=c(0.08,1),legend.justification=c(0,1),legend.direction = "horizontal") +
   labs(x="Publication year",y="log relative citation ratio")
-plot_grid(top,bot,nrow=1)
-ggsave("../figures/fig-rel-cit-ratio-per-year.tiff",height=6,width=12,units="in", bg="white")
-
+plot_grid(top,bot,nrow=1, labels = "AUTO")
+#ggsave("../figures/fig-rel-cit-ratio-per-year.tiff",height=6,width=12,units="in", bg="white")
+#ggsave("../figures/fig-rel-cit-ratio-per-year.png",height=6,width=12,units="in", bg="white")
 
 
 ## odd that the gap closes in the final year.
@@ -104,7 +105,8 @@ bot=ggplot(y_avg[], aes(x=years_since, y=mean_count, col=Public_ss)) +
   ## scale_y_log10() +
   labs(x="Years since publication",y="Mean citation count")
 plot_grid(top,bot,nrow=1, labels = "AUTO")
-ggsave("../figures/fig-mean-citation-count-per-year.tiff",height=8,width=14,units="in", bg ="white")
+#ggsave("../figures/fig-mean-citation-count-per-year.tiff",height=8,width=14,units="in", bg ="white")
+#ggsave("../figures/fig-mean-citation-count-per-year.png",height=8,width=14,units="in", bg ="white")
 
 ## it takes 2-3 years for sharing effect to stabilise. Exclude 2021 because not enough time has passed
 x=x[year<=2020]
@@ -143,7 +145,7 @@ ggplot(x[journal %in% jkeep], aes(x=year,fill=Public_ss)) +
 # 
 # 
 # # Top 50 journals with the most published GWAS, with at least one sharer. Compare SJR and RCR.
-# 
+
 # j50=sort(tt,decreasing = TRUE) %>% names() %>% intersect(., x[Public_ss=="Y"]$journal) %>% head(.,50)
 # res50=lapply(seq_along(j50), function(j) {
 #   m=glm(y ~ factor(year) + Public_ss, data=x[year<2021 & journal==j50[j]])
@@ -165,6 +167,7 @@ ggplot(x[journal %in% jkeep], aes(x=year,fill=Public_ss)) +
 #   geom_pointrange() +
 #   ## geom_label(aes(label=journal)) +
 #   geom_smooth(method="lm") +
+#   xlim(c(0,20))+
 #   labs(x="Ratio of RCR in papers with shared vs unshared data",y="SJR") +
 #   background_grid(major="x")
 
@@ -226,6 +229,74 @@ exp(coef(m9a)["Public_ssY"]+ c(-1,1) * 1.96 * sqrt(vcov(m9a)["Public_ssY","Publi
 "\n")
 # Ratio of RCR in publications that shared vs did not =  1.749155 
 # 95% CI:  1.598061 1.914535 
+
+# 
+## Build logistic linear models to see which factors affect sharing, if any
+
+# We'll use y_ss to dichotomise the variable?
+ml0=glm(y_ss ~ factor(year), data=xmodel, family = "binomial") # ml0: is year better as linear or as a factor?
+ml1=glm(y_ss ~ year, data=xmodel, family = "binomial") # ml1: does time affect sharing?
+BIC(ml0, ml1) # Better modelled as linear
+ml2=glm(y_ss ~ log(SJR), data=xmodel, family = "binomial") # ml2: what about IF?
+ml3=glm(y_ss ~ year + log(SJR), data=xmodel, family = "binomial") # ml3: year and IF
+ml4=glm(y_ss ~ year + log(SJR) + sjournal, data=xmodel, family = "binomial") # ml4: add sjournal
+BIC(ml1, ml2, ml3, ml4) # go with year + IF + sjournal (ml4)
+
+# Let's add the MeSH terms
+ml5=glm(y_ss ~ year + log(SJR) + sjournal + human, data=xmodel, family = "binomial") # ml5: human MeSH terms
+ml6=glm(y_ss ~ year + log(SJR) + sjournal + animal, data=xmodel, family = "binomial") # ml6: animal MeSH terms
+ml7=glm(y_ss ~ year + log(SJR) + sjournal + molecular_cellular, data=xmodel, family = "binomial") # ml7: molecular_cellular MeSH terms
+ml8=glm(y_ss ~ year + log(SJR) + sjournal + human + animal + molecular_cellular, data=xmodel, family = "binomial") # ml8: MeSH terms all together
+ml9=glm(y_ss ~ year + log(SJR) + sjournal + human + molecular_cellular, data=xmodel, family = "binomial") # ml9: human and molecular_cellular MeSH terms
+BIC(ml4, ml5, ml6, ml7, ml8, ml9) # Adding mesh terms doesn't really help. let's keep ml4
+
+drop1(ml4) # All variables still important
+
+summary(ml4)
+
+# Call:
+#   glm(formula = y_ss ~ year + log(SJR) + sjournal, family = "binomial", 
+#       data = xmodel)
+# 
+# Deviance Residuals: 
+#   Min       1Q   Median       3Q      Max  
+# -1.9614  -0.3931  -0.2415  -0.1205   3.2159  
+# 
+# Coefficients:
+#   Estimate Std. Error z value Pr(>|z|)    
+#   (Intercept)                                   -797.74531   44.98920 -17.732  < 2e-16 ***
+#   year                                             0.39357    0.02229  17.659  < 2e-16 ***
+#   log(SJR)                                         0.99818    0.11321   8.817  < 2e-16 ***
+#   sjournalAm J Hum Genet                           0.65506    0.36594   1.790 0.073444 .  
+#   sjournalAm J Med Genet B Neuropsychiatr Genet    1.15971    0.75335   1.539 0.123706    
+#   sjournalAnn Rheum Dis                           -0.01159    0.56504  -0.021 0.983637    
+#   sjournalDiabetes                                 2.14498    0.43720   4.906 9.29e-07 ***
+#   sjournalEur J Hum Genet                          1.50105    0.51641   2.907 0.003653 ** 
+#   sjournalFront Genet                              0.55164    0.75203   0.734 0.463235    
+#   sjournalHum Mol Genet                            1.57441    0.25992   6.057 1.38e-09 ***
+#   sjournalJ Allergy Clin Immunol                  -0.72301    1.03221  -0.700 0.483646    
+#   sjournalJ Hum Genet                              0.98290    0.76666   1.282 0.199819    
+#   sjournalJ Med Genet                              0.40017    1.04184   0.384 0.700903    
+#   sjournalMol Psychiatry                           0.41862    0.34767   1.204 0.228564    
+#   sjournalNat Commun                               1.28203    0.17921   7.154 8.44e-13 ***
+#   sjournalNat Genet                                0.73791    0.24971   2.955 0.003126 ** 
+#   sjournalNature                                   1.61032    0.42006   3.834 0.000126 ***
+#   sjournalPLoS Genet                               1.84368    0.25578   7.208 5.67e-13 ***
+#   sjournalPLoS One                                 1.81483    0.33201   5.466 4.60e-08 ***
+#   sjournalProc Natl Acad Sci U S A                -0.16011    1.05750  -0.151 0.879657    
+#   sjournalSci Rep                                  0.94067    0.37136   2.533 0.011308 *  
+#   sjournalTransl Psychiatry                       -0.76807    0.73046  -1.051 0.293036    
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# (Dispersion parameter for binomial family taken to be 1)
+# 
+# Null deviance: 3000.5  on 4941  degrees of freedom
+# Residual deviance: 2240.9  on 4920  degrees of freedom
+# AIC: 2284.9
+# 
+# Number of Fisher Scoring iterations: 6
+
 
 
 
