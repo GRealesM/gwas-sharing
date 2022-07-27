@@ -133,6 +133,9 @@ glm(y ~ factor(year) + Public_ss, data=x) %>% summary()
 xmodel <- x[!is.na(SJR) & !is.na(y)]
 
 ## Exploration by journal
+xjournal <- xmodel[, .(articles = .N, shared_ss = sum(y_ss)), by= "journal"][order(articles, decreasing = TRUE)]
+#fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
+
 ## look at most common journals - do we see the same story within journal?
 tt=table(xmodel$journal)
 sort(tt,decreasing = TRUE) %>% head(., 20)
