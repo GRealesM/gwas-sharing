@@ -1,4 +1,9 @@
-# Preparing non-sharing analysis for Nat Genet and PLoS Genet
+#####################################################################
+####     Preparing data for analysis of non-sharer articles      ####
+#####################################################################
+
+# Background: We'll select a random 50% of Plos Genet and Nat Genet papers classified as non-sharers in GWAS catalog for further analysis.
+# Date: 2022/06/10
 
 library(data.table)
 set.seed(1)

@@ -2,7 +2,9 @@
 ### Processing Journal Names ####
 #################################
 
-# Journal info from both GWAS catalog and iCiteR use journal abbreviations while SCR data use full journal names and ISSN. We'll use data from NLM catalog to match them.
+# Background: Journal info from both GWAS catalog and iCiteR use journal abbreviations while SCR data use full journal names and ISSN. We'll use data from NLM catalog to match them.
+
+# Date: 2022/06/10
 
 library(data.table)
 
