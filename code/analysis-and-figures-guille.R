@@ -256,7 +256,7 @@ sigtable1 <- data.table(preds=predictors,
                        low.ci = sapply(predictors, function(x){exp(coef(m9a)[x]+ -1 * 1.96 * sqrt(vcov(m9a)[x,x]))}),
                        hi.ci =  sapply(predictors, function(x){exp(coef(m9a)[x]+ 1 * 1.96 * sqrt(vcov(m9a)[x,x]))}))
 
-fwrite(sigtable1, "../tables/Sigtable_m9a.tsv", sep = "\t")
+#  fwrite(sigtable1, "../tables/Sigtable_m9a.tsv", sep = "\t")
 
  
 ## Build logistic linear models to see which factors affect sharing, if any
@@ -342,7 +342,34 @@ sigtable2 <- data.table(preds=predictors2,
                        low.ci = sapply(predictors2, function(x){exp(coef(ml4)[x]+ -1 * 1.96 * sqrt(vcov(ml4)[x,x]))}),
                        hi.ci =  sapply(predictors2, function(x){exp(coef(ml4)[x]+ 1 * 1.96 * sqrt(vcov(ml4)[x,x]))}))
 
-fwrite(sigtable2, "../tables/Sigtable_ml4.tsv", sep = "\t")
+# fwrite(sigtable2, "../tables/Sigtable_ml4.tsv", sep = "\t")
+
+
+################################################################################################################################
+### Some additional visualisations
+
+## How is molcel related to log(RCR) and sharing status?
+
+mcp <- ggplot(xmodel, aes(molecular_cellular, y, col=y_ss)) +
+              geom_point(aes(group=y_ss))+
+              geom_smooth()+
+              scale_colour_seaborn("Shared Sumstats    ", guide = guide_legend(reverse=TRUE), labels=c("No", "Yes"))+
+              labs(x="Molcel score",y="log(RCR)")
+mcp
+
+hp <- ggplot(xmodel, aes(human, y, col=y_ss)) +
+  geom_point(aes(group=y_ss))+
+  geom_smooth()+
+  scale_colour_seaborn("Shared Sumstats    ", guide = guide_legend(reverse=TRUE), labels=c("No", "Yes"))+
+  labs(x="Human score",y="log(RCR)")
+hp
+
+hmcp <- ggplot(xmodel, aes(human, molecular_cellular, col=y_ss)) +
+  geom_point(aes(group=y_ss))+
+  geom_smooth()+
+  scale_colour_seaborn("Shared Sumstats    ", guide = guide_legend(reverse=TRUE), labels=c("No", "Yes"))+
+  labs(x="Human score",y="Molecular cellular score")
+hmcp
 
 
 
