@@ -427,3 +427,14 @@ cmp[is.na(ss_count_sample), ss_count_sample:=0]
 
 cor(cmp$ss_count_large, cmp$ss_count_sample)
 # 0.8456454
+
+
+
+## Extract nonsharers from 2017 onwards
+
+xj17 <- x[Public_ss =="N" & year >= 2017, .(PMID, doi, First_Author, Title, journal)]
+xj17[, c("PubMed_url","doi_url"):=list(paste0("https://pubmed.ncbi.nlm.nih.gov/", PMID), paste0("https://doi.org/", doi))]
+
+fwrite(xj17, "../data/Nonsharers_2017.tsv", sep="\t")
+
+
