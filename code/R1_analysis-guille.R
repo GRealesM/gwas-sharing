@@ -3,12 +3,14 @@
 # Here we'll address two questions
 # 1) Is molcel important? How much does the result change if we remove it?
 # 2) Is 2021 SJR data enough? 
+# 3) How does mislabelling change over time?
 
 # For the first question, we'll apply the same dataset we used for the main analyses, for the second, we'll use an updated dataset with yearly SJR scores.
 
 # Load packages
 
 library(data.table)
+library(xlsx)
 library(magrittr)
 library(ggplot2)
 # devtools::install_github("chr1swallace/seaborn_palettes")
@@ -16,7 +18,9 @@ library(seaborn)
 library(cowplot)
 theme_set(theme_cowplot())
 
-## Question 1 - Is molcel important? How much does the result change if we remove it?
+
+#------------ Preparing data
+
 
 ## Load and process data
 d="../data" #"~/rds/rds-cew54-basis/Projects/gwas-sharing/data/"
@@ -28,7 +32,9 @@ dim(x)
 
 # Check journals and SJR info
 x[ , .(Journal, SJR)] %>% unique %>% nrow
+# 723
 x[ !is.na(SJR), .(Journal, SJR)] %>% unique %>% nrow
+# 696
 
 setnames(x,c("Journal","Year"),c("journal","year")) # to match previous data columns
 ## Date is first published date (perhaps online), Year is published in print
@@ -50,12 +56,13 @@ x[,y:=log(relative_citation_ratio)] # Our Response Variable
 hist(x$y,breaks=100)
 x[,y_ss:=Public_ss=="Y"]
 
+#------------ Question 1 - Is molcel important? How much does the result change if we remove it?
+
 ### Model fitting
 
-## As we saw in Figure 3, it takes 2-3 years for sharing effect to stabilise. Exclude 2021 because not enough time has passed
-x=x[year<=2020]
+
 # Prepare dataset for modelling, we'll remove missing data for relevant variables. We'll also consider years 2007-2020
-xmodel <- x[!is.na(SJR) & !is.na(y)]
+xmodel <- x[!is.na(SJR) & !is.na(y) & year <=2020]
 ## Exploration by journal
 xjournal <- xmodel[, .(articles = .N, shared_ss = sum(y_ss)), by= "journal"][order(articles, decreasing = TRUE)]
 #fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
@@ -185,7 +192,7 @@ hmcp
 
 
 
-## Question 2 - Is 2021 SJR data enough?
+#------------ Question 2 - Is 2021 SJR data enough?
 
 # We'll load an updated dataset containing yearly SJR scores for each journal, and apply the same data cleaning procedure to it.
 
@@ -194,8 +201,11 @@ xb=file.path(d,"R1_Main_data_20221011.tsv") %>% fread()
 dim(xb)
 
 # Check journals and SJR info
-xb[ , .(Journal, SJR)] %>% unique %>% nrow
-xb[ !is.na(SJR), .(Journal, SJR)] %>% unique %>% nrow
+xb[ , .(Journal)] %>% unique %>% nrow
+# 723
+xb[ !is.na(SJR), .(Journal)] %>% unique %>% nrow
+# 674
+# Some journals are lost. This is because they had SJR data for 2021, but not for the years the papers in GWAS catalog were published, so effectively we can't count them.
 
 setnames(xb,c("Journal","Year"),c("journal","year")) # to match previous data columns
 ## Date is first published date (perhaps online), Year is published in print
@@ -206,8 +216,8 @@ xb[,year:=as.numeric(substr(Date,1,4))]
 ## exclude 2022 as incomplete and 2006 and before because no shared studies
 with(xb,table(year, Public_ss))
 xb=xb[year < 2022 & year > 2006]
-
 # NOTE: Here SJR scores make reference to the old "year", which is now year_inprint.
+
 
 summary(xb$relative_citation_ratio)
 hist((xb$relative_citation_ratio))
@@ -240,7 +250,7 @@ xbmodel[,sjournal:=factor(sjournal)][,sjournal:=relevel(sjournal,"Other")]
 xjevo <- xbmodel[ sjournal != "Other", .(year_inprint, journal, SJR)] %>% unique
 
 
-jevop <- ggplot(xjevo, aes(x=year_inprint, y=log(SJR), group=journal, colour=journal))+
+jevop <- ggplot(xjevo, aes(x=year_inprint, y=SJR, group=journal, colour=journal))+
         geom_point()+
         geom_line()
 jevop
@@ -356,3 +366,64 @@ sigtableb1 <- data.table(preds=predictors,
                         hi.ci =  sapply(predictors, function(x){exp(coef(mb9a)[x]+ 1 * 1.96 * sqrt(vcov(mb9a)[x,x]))}))
 
 
+#######################################################################################################################
+
+#---- Sensitivity Analysis
+
+# We'll now remove each variable from the original model and see who coefficients for sharing change
+# For this, we'll use the original dataset (xmodel), with SJR year == 2021
+
+
+ms1=glm(y~year + log(SJR) + sjournal + molecular_cellular + Public_ss, data=xmodel) # Original model
+ms2=glm(y~year + log(SJR) + sjournal + Public_ss, data=xmodel)                      # No molcel
+ms3=glm(y~year + log(SJR) + molecular_cellular + Public_ss, data=xmodel)            # No sjournal
+ms4=glm(y~year + sjournal + molecular_cellular + Public_ss, data=xmodel)            # No SJR
+ms5=glm(y~ log(SJR) + sjournal + molecular_cellular + Public_ss, data=xmodel)       # No year
+BIC.ms <- BIC(ms1,ms2,ms3,ms4,ms5)
+#    df      BIC
+#ms1 26 12729.46
+#ms2 25 12743.70
+#ms3  6 12705.49
+#ms4 25 13889.52
+#ms5 25 13095.02
+
+sens.table <- data.table(pred_removed=c("None", "molecular_cellular", "sjournal", "log(SJR)", "Year"),
+                         exp_estimate = sapply(1:5, function(i) {exp(coef(get(paste0("ms", i)))["Public_ssY"])}),
+                         low.ci = sapply(1:5, function(i){exp(coef(get(paste0("ms", i)))["Public_ssY"]+ -1 * 1.96 * sqrt(vcov(get(paste0("ms", i)))["Public_ssY","Public_ssY"]))}),
+                         hi.ci  = sapply(1:5, function(i){exp(coef(get(paste0("ms", i)))["Public_ssY"]+ 1 * 1.96 * sqrt(vcov(get(paste0("ms", i)))["Public_ssY","Public_ssY"]))}),
+                         df     = BIC.ms$df,
+                         BIC    = BIC.ms$BIC)
+#           pred_removed exp_estimate   low.ci    hi.ci df      BIC
+# 1:               None     1.749873 1.598681 1.915363 26 12729.46
+# 2: molecular_cellular     1.762342 1.609829 1.929303 25 12743.70
+# 3:           sjournal     1.883189 1.721459 2.060114  6 12705.49
+# 4:           log(SJR)     2.108419 1.905758 2.332631 25 13889.52
+# 5:               Year     1.359551 1.242375 1.487778 25 13095.02
+
+
+#------------ Question 3 - How does mislabelling evolve over time?
+
+mlb <- read.xlsx("../tables/Tables_submission_bioRxiv.xlsx", sheetIndex = 1, startRow = 2) %>% data.table
+mlb[, year:=as.numeric(sapply(strsplit(Date, "-"), `[`, 1))]
+setnames(mlb, "Full.summary.statistics.available.", "Public_ss")
+mlb[Public_ss %in% c("Yes, authors' website", "Yes, author's website", "Yes, authors' website, but not advertised in manuscript"), Public_ss:="Yes"]
+mlb[Public_ss %in% c("Yes, authors' website, but link does not contain data", "Authors' website, but link broken"), Public_ss:="No"] # Simplify, coerce to no
+
+ggplot(mlb, aes(x=year,fill=Public_ss)) +
+  geom_histogram(binwidth=1,colour="grey",position="dodge") +
+  scale_fill_seaborn("Shared outside GWAS catalog  ", guide = guide_legend(reverse=TRUE), labels=c("No", "Yes")) +
+  labs(x="Publication year",y="Observations") +
+  #scale_fill_discrete(guide = guide_legend(reverse=TRUE), breaks = rev(levels(x$Public_ss)), labels=c("Yes", "No")) +
+  background_grid(major="y")+
+  theme(legend.position=c(0.5,0.96),legend.justification=c(0,1),legend.direction = "horizontal")
+
+
+xms <- x[!PMID %in% mlb$PMID, .(year, PMID, Public_ss)] # Remove sample from full dataset, x minus sample
+cmp <- xms[Public_ss == "Y", .(ss_count_large = .N), by = year] # Counts of shared ss per year
+mlbsum <- mlb[Public_ss == "Yes", .(ss_count_sample = .N), by = year]
+
+cmp <- merge(cmp, mlbsum, by="year", all = TRUE)
+cmp[is.na(ss_count_sample), ss_count_sample:=0]
+
+cor(cmp$ss_count_large, cmp$ss_count_sample)
+# 0.8456454

@@ -33,6 +33,8 @@ jinf <- lapply(2005:2021, function(x){
 jinf <- jinf[, .(Title, SJR, Year, `SJR Best Quartile`, `H index`, Publisher)][, SJR:=as.numeric(gsub(",", ".", SJR))] 
 setnames(jinf, c("SJR Best Quartile", "H index", "Title"), c( "SJR_Best_Quartile", "H_index", "SCR.title") )
 
+fwrite(jinf, "../data/Full_scimago_info.tsv", sep="\t")
+
 m[jinf , SJR := i.SJR, on=.(SCR.title, Year)][jinf , SJR_Best_Quartile := i.SJR_Best_Quartile, on=.(SCR.title, Year)][jinf , H_index := i.H_index, on=.(SCR.title, Year)] # Update values per year
 
 fwrite(m, "../data/R1_Main_data_20221011.tsv", sep="\t", na = NA)
