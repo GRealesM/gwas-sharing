@@ -34,6 +34,15 @@ j.with.sjr <- x[ !is.na(SJR), journal] %>% unique
 # 691 journals with SJR data for at least one year
 setdiff(j.total, j.with.sjr)
 
+
+# Proportion of sharing/non-sharing studies
+x[ , .N, by = "Public_ss"][, N/sum(N)][2] 
+# 0.104934, or 10.5%
+
+# Proportion of sharing/non-sharing studies in 2021
+x[ year == 2021, .N, by = "Public_ss"][, N/sum(N)][2]
+# 0.2093426, or 20.93%
+
 ## exclude 2022 as incomplete and 2005-2006 and before because no shared studies
 with(x,table(year, Public_ss))
 x=x[year < 2022 & year > 2006]
@@ -69,13 +78,7 @@ y=y[order(PMID,years_since)]
 
 #---- Exploratory Data Analysis
 
-# Proportion of sharing/non-sharing studies
-x[ , .N, by = "Public_ss"][, N/sum(N)][2] 
-# 0.1015282, or 10.15%
 
-# Proportion of sharing/non-sharing studies in 2021
-x[ year == 2021, .N, by = "Public_ss"][, N/sum(N)][2]
-# 0.2093426, or 20.93%
 
 ## Figure 1 : observations by publication year
 
@@ -158,7 +161,7 @@ xmodel <- x[!is.na(SJR) & !is.na(y) & year<=2020]
 xjournal <- xmodel[, .(articles = .N, shared_ss = sum(y_ss)), by= "journal"][order(articles, decreasing = TRUE)]
 
 # Save Table S4
-#fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
+fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
 
 jkeep <- xjournal[shared_ss > 0][1:20, journal]
 xmodel[,sjournal:=ifelse(journal %in% jkeep,journal,"Other")]             # Use top 20 most common journals with at least one shared dataset, pool the rest as "other"

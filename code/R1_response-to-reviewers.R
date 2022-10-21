@@ -97,6 +97,26 @@ BIC(m5,m5a)
 # m5a 25 12743.70
 # Adding Public_ss has a huge impact on model fit
 
+# Compare both models with Public_ss
+m9a=glm(y~year + log(SJR) + sjournal + molecular_cellular + Public_ss, data=xmodel) # Model used in the first version of the paper.
+
+BIC.59a <- BIC(m9a, m5a)
+BIC.59a
+#     df      BIC
+# m5a 25 12743.70
+# m9a 26 12729.46
+
+comparison.table <- data.table(pred_removed=c("Original", "without_molecular_cellular"),
+                         exp_estimate = sapply(c(9,5), function(i) {exp(coef(get(paste0("m", i, "a")))["Public_ssY"])}),
+                         low.ci = sapply(c(9,5), function(i){exp(coef(get(paste0("m", i, "a")))["Public_ssY"]+ -1 * 1.96 * sqrt(vcov(get(paste0("m", i, "a")))["Public_ssY","Public_ssY"]))}),
+                         hi.ci  = sapply(c(9,5), function(i){exp(coef(get(paste0("m", i, "a")))["Public_ssY"]+ 1 * 1.96 * sqrt(vcov(get(paste0("m", i, "a")))["Public_ssY","Public_ssY"]))}),
+                         df     = BIC.59a$df,
+                         BIC    = BIC.59a$BIC)
+#                  pred_removed exp_estimate   low.ci    hi.ci df      BIC
+# 1:                   Original     1.749873 1.598681 1.915363 26 12729.46
+# 2: without_molecular_cellular     1.762342 1.609829 1.929303 25 12743.70
+
+
 summary(m5a)
 # Call:
 # glm(formula = y ~ year + log(SJR) + sjournal + Public_ss, data = xmodel)
