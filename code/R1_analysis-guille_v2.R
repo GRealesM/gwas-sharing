@@ -89,8 +89,8 @@ ggplot(x, aes(x=year,fill=Public_ss)) +
   #scale_fill_discrete(guide = guide_legend(reverse=TRUE), breaks = rev(levels(x$Public_ss)), labels=c("Yes", "No")) +
   background_grid(major="y")+
   theme(legend.position=c(0.05,0.96),legend.justification=c(0,1),legend.direction = "horizontal")
-ggsave("../figures/R1_figure1.tiff",height=6,width=7,units="in", bg="white")
-ggsave("../figures/R1_figure1.png",height=6,width=7,units="in", bg="white")
+#ggsave("../figures/R1_figure1.tiff",height=6,width=7,units="in", bg="white")
+#ggsave("../figures/R1_figure1.png",height=6,width=7,units="in", bg="white")
 
 # total observations increases with year, and sharing increases.
 # Need to consider year as a potential confounder.
@@ -114,8 +114,8 @@ bot=ggplot(x, aes(x=year,y=y,col=Public_ss)) +
   labs(x="Publication year",y="log relative citation ratio")
 plot_grid(top,bot,nrow=1, labels = "AUTO")
 
-ggsave("../figures/R1_figure2.tiff",height=6,width=12,units="in", bg="white")
-ggsave("../figures/R1_figure2.png",height=6,width=12,units="in", bg="white")
+#ggsave("../figures/R1_figure2.tiff",height=6,width=12,units="in", bg="white")
+#ggsave("../figures/R1_figure2.png",height=6,width=12,units="in", bg="white")
 
 
 ## Figure 3 : Shared/unshared citation ratio over the years, by year of publication, and mean citation count of shared and unshared datasets over the years, by year of publication.
@@ -123,7 +123,7 @@ ggsave("../figures/R1_figure2.png",height=6,width=12,units="in", bg="white")
 y_avg=y[,.(mean_count=mean(count),n=.N),by=c("year","years_since","Public_ss","pubyear")][order(years_since)]
 y_avg=y_avg[pubyear >= 2010 & pubyear<2019 & year >=pubyear & year < 2022]
 y_avg[,max_years:=max(years_since),by="pubyear"]
-y_rel=dcast(y_avg, year + pubyear +  years_since ~ Public_ss, value.var="mean_count")
+y_rel=dcast(y_avg, year + pubyear +  years_since ~ Public_ss, value.var="mean_count") %>% as.data.table
 y_rel[,rel_mean_count:=Y/N]
 
 top=ggplot(y_rel, aes(x=years_since, y=rel_mean_count)) +
@@ -145,8 +145,8 @@ bot=ggplot(y_avg[], aes(x=years_since, y=mean_count, col=Public_ss)) +
   labs(x="Years since publication",y="Mean citation count")
 plot_grid(top,bot,nrow=1, labels = "AUTO")
 
-ggsave("../figures/R1_figure3.tiff",height=8,width=14,units="in", bg ="white")
-ggsave("../figures/R1_figure3.png",height=8,width=14,units="in", bg ="white")
+#ggsave("../figures/R1_figure3.tiff",height=8,width=14,units="in", bg ="white")
+#ggsave("../figures/R1_figure3.png",height=8,width=14,units="in", bg ="white")
 
 
 #---- Model fitting
@@ -161,7 +161,7 @@ xmodel <- x[!is.na(SJR) & !is.na(y) & year<=2020]
 xjournal <- xmodel[, .(articles = .N, shared_ss = sum(y_ss)), by= "journal"][order(articles, decreasing = TRUE)]
 
 # Save Table S4
-fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
+#fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
 
 jkeep <- xjournal[shared_ss > 0][1:20, journal]
 xmodel[,sjournal:=ifelse(journal %in% jkeep,journal,"Other")]             # Use top 20 most common journals with at least one shared dataset, pool the rest as "other"
@@ -196,59 +196,56 @@ ml6=glm(y_ss ~ year + log(SJR) + animal, data=xmodel, family = "binomial")      
 ml7=glm(y_ss ~ year + log(SJR) + molecular_cellular, data=xmodel, family = "binomial") # ml7: molecular_cellular MeSH terms
 ml8=glm(y_ss ~ year + log(SJR) + human + animal + molecular_cellular, data=xmodel, family = "binomial") # ml8: MeSH terms all together
 ml9=glm(y_ss ~ year + log(SJR) + human + molecular_cellular, data=xmodel, family = "binomial") # ml9: human and molecular_cellular MeSH terms
-BIC(ml4, ml5, ml6, ml7, ml8, ml9) # In this case, adding molecular_cellular really helps. We'll go with ml7
-#     df      BIC
-# ml4 23 2448.544
+BIC(ml3, ml5, ml6, ml7, ml8, ml9) # In this case, doesn't help. We'll go with ml3
+# df      BIC
+# ml3  3 2400.554
 # ml5  4 2409.011
 # ml6  4 2409.045
 # ml7  4 2408.926
 # ml8  6 2425.558
 # ml9  5 2417.402
 
-drop1(ml7) # According to AIC, we could remove molecular_cellular, but the difference is tiny
+drop1(ml3) # All variables useful
 # Single term deletions
 # 
 # Model:
-#   y_ss ~ year + log(SJR) + molecular_cellular
-#                    Df Deviance    AIC
-# <none>                  2374.9 2382.9
-# year                1   2865.5 2871.5
-# log(SJR)            1   2699.7 2705.7
-# molecular_cellular  1   2375.0 2381.0
+#   y_ss ~ year + log(SJR)
+# Df Deviance    AIC
+# <none>        2375.0 2381.0
+# year      1   2872.5 2876.5
+# log(SJR)  1   2700.7 2704.7
 
 
-summary(ml7)
+summary(ml3)
 # Call:
-#   glm(formula = y_ss ~ year + log(SJR) + molecular_cellular, family = "binomial", 
-#       data = xmodel)
+#   glm(formula = y_ss ~ year + log(SJR), family = "binomial", data = xmodel)
 # 
 # Deviance Residuals: 
 #   Min       1Q   Median       3Q      Max  
-# -1.4776  -0.4315  -0.2580  -0.1400   3.2934  
+# -1.4721  -0.4309  -0.2581  -0.1400   3.2971  
 # 
 # Coefficients:
 #   Estimate Std. Error z value Pr(>|z|)    
-#   (Intercept)        -789.40020   42.83658  -18.43   <2e-16 ***
-#   year                  0.38959    0.02121   18.36   <2e-16 ***
-#   log(SJR)              1.06141    0.06303   16.84   <2e-16 ***
-#   molecular_cellular   -0.09639    0.26074   -0.37    0.712    
-# ---
+#   (Intercept) -790.72856   42.69691  -18.52   <2e-16 ***
+#   year           0.39024    0.02115   18.45   <2e-16 ***
+#   log(SJR)       1.05953    0.06281   16.87   <2e-16 ***
+#   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # (Dispersion parameter for binomial family taken to be 1)
 # 
-# Null deviance: 3004.0  on 4959  degrees of freedom
-# Residual deviance: 2374.9  on 4956  degrees of freedom
-# AIC: 2382.9
+# Null deviance: 3004  on 4959  degrees of freedom
+# Residual deviance: 2375  on 4957  degrees of freedom
+# AIC: 2381
 # 
 # Number of Fisher Scoring iterations: 6
 
 # Table of results for significant
-predictors2 = rownames(summary(ml7)$coeff)
+predictors2 = rownames(summary(ml3)$coeff)
 sigtable2 <- data.table(preds=predictors2,
-                        OR = exp(coef(ml7)),
-                        low.ci = sapply(predictors2, function(x){exp(coef(ml7)[x]+ -1 * 1.96 * sqrt(vcov(ml7)[x,x]))}),
-                        hi.ci =  sapply(predictors2, function(x){exp(coef(ml7)[x]+ 1 * 1.96 * sqrt(vcov(ml7)[x,x]))}))
+                        OR = exp(coef(ml3)),
+                        low.ci = sapply(predictors2, function(x){exp(coef(ml3)[x]+ -1 * 1.96 * sqrt(vcov(ml3)[x,x]))}),
+                        hi.ci =  sapply(predictors2, function(x){exp(coef(ml3)[x]+ 1 * 1.96 * sqrt(vcov(ml3)[x,x]))}))
 
 # Save Table S2 complement
 fwrite(sigtable2, "../tables/R1_S2_complement.tsv", sep = "\t")
