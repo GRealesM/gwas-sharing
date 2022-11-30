@@ -161,7 +161,7 @@ xmodel <- x[!is.na(SJR) & !is.na(y) & year<=2020]
 xjournal <- xmodel[, .(articles = .N, shared_ss = sum(y_ss)), by= "journal"][order(articles, decreasing = TRUE)]
 
 # Save Table S4
-#fwrite(xjournal, "../tables/Journals_table.tsv", sep="\t")
+#fwrite(xjournal, "../tables/R1_S4_Journals_table.tsv", sep="\t")
 
 jkeep <- xjournal[shared_ss > 0][1:20, journal]
 xmodel[,sjournal:=ifelse(journal %in% jkeep,journal,"Other")]             # Use top 20 most common journals with at least one shared dataset, pool the rest as "other"

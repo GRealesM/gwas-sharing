@@ -36,4 +36,11 @@ md[ is.na(Sharer_17), Sharer_17:=Public_ss]
   
 # Save it
 fwrite(md ,file.path(d, "R1_Main_data_20221128.tsv"), sep = "\t")
-  
+
+
+# Update non-sharer table to generate table S5
+ns <- fread(file.path(d, "Nonsharers_2017.tsv"))
+ns <- merge(ns, ar, by="PMID", all.x = TRUE)
+ns[ is.na(Sharer_17), Sharer_17:="N"]
+
+fwrite(ns , "../tables/R1_S5_mislabelled_2017.tsv", sep = "\t")
