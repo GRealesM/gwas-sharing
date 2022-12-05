@@ -508,3 +508,10 @@ xj17 <- x[Public_ss =="N" & year >= 2017, .(PMID, doi, year, First_Author, Title
 xj17[, c("PubMed_url","doi_url"):=list(paste0("https://pubmed.ncbi.nlm.nih.gov/", PMID), paste0("https://doi.org/", doi))]
 
 fwrite(xj17, "../data/Nonsharers_2017.tsv", sep="\t")
+
+# Extract all nonsharers
+
+xj.all <- x[Public_ss =="N", .(PMID, doi, year, first_author, title, journal)]
+xj.all[, c("PubMed_url","doi_url"):=list(paste0("https://pubmed.ncbi.nlm.nih.gov/", PMID), paste0("https://doi.org/", doi))]
+
+fwrite(xj.all, "../data/Nonsharers_all.tsv", sep="\t")
