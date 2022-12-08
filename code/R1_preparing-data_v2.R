@@ -151,7 +151,6 @@ setcolorder(m, c("PMID", "journal", "Public_ss", "ds_count",  "relative_citation
 fwrite(m, "../data/R1_Main_data_20221020.tsv", sep="\t", na = NA)
 
 
-
 #---- Get citation history, year per year of the articles
 
 # We'll extract this info in the same fashion as we did previously. We'll extract citing articles from the `cited_by` column and retrieve their year, then we'll be able to count number of citations each year.
@@ -170,7 +169,7 @@ citing.items <- lapply(0:188, function(x){
   if(x == 0) start_idx = 1
   end_idx = start_idx + 999
   if(end_idx > length(lup)) end_idx = length(lup)
-
+  
   pmids <- lup[start_idx:end_idx]
   message("Getting metrics for papers ", start_idx, " to ", end_idx)
   papers <- get_metrics(pmids)
@@ -182,6 +181,21 @@ cith <- merge(cith, citing.items, by.x = "value", by.y = "pmid")
 # Now create a summary
 sum.cith <- cith[, .(count = .N), by=c("PMID", "year")]
 fwrite(sum.cith, "../data/Citations_per_year_20220611.tsv", sep="\t")
+
+
+#---- Extract all non-sharers for advanced search
+
+#m <- fread("../data/R1_Main_data_20221020.tsv")
+
+xj.all <- m[Public_ss =="N", .(PMID, doi, year, first_author, title, journal)]
+xj.all[, c("PubMed_url","doi_url"):=list(paste0("https://pubmed.ncbi.nlm.nih.gov/", PMID), paste0("https://doi.org/", doi))]
+
+fwrite(xj.all, "../data/Nonsharers_all.tsv", sep="\t")
+
+
+#---- Create dataset with updated classification
+
+
 
 
 
