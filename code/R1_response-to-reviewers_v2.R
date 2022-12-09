@@ -375,10 +375,3 @@ cmp[is.na(ss_count_sample), ss_count_sample:=0]
 cor(cmp$ss_count_large, cmp$ss_count_sample)
 # 0.8456454
 
-
-# Extract all nonsharers
-
-xj.all <- x[Public_ss =="N", .(PMID, doi, year, first_author, title, journal)]
-xj.all[, c("PubMed_url","doi_url"):=list(paste0("https://pubmed.ncbi.nlm.nih.gov/", PMID), paste0("https://doi.org/", doi))]
-
-fwrite(xj.all, "../data/Nonsharers_all.tsv", sep="\t")

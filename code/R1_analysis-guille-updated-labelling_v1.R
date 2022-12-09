@@ -151,8 +151,8 @@ bot=ggplot(y_avg[], aes(x=years_since, y=mean_count, col=Sharer_updated)) +
   labs(x="Years since publication",y="Mean citation count")
 plot_grid(top,bot,nrow=1, labels = "AUTO")
 
-ggsave("../figures/R1_figure3_updated.tiff",height=8,width=14,units="in", bg ="white")
-ggsave("../figures/R1_figure3_updated.png",height=8,width=14,units="in", bg ="white")
+# ggsave("../figures/R1_figure3_updated.tiff",height=8,width=14,units="in", bg ="white")
+# ggsave("../figures/R1_figure3_updated.png",height=8,width=14,units="in", bg ="white")
 
 
 #---- Model fitting
@@ -167,7 +167,7 @@ xmodel <- x[!is.na(SJR) & !is.na(y) & year<=2020]
 xjournal <- xmodel[, .(articles = .N, shared_ss = sum(y_ss)), by= "journal"][order(articles, decreasing = TRUE)]
 
 # Save Table S4
-# fwrite(xjournal, "../tables/R1_S4_Journals_table.tsv", sep="\t")
+# fwrite(xjournal, "../tables/R1_S5_Journals_table.tsv", sep="\t")
 
 jkeep <- xjournal[shared_ss > 0][1:20, journal]
 xmodel[,sjournal:=ifelse(journal %in% jkeep,journal,"Other")]             # Use top 20 most common journals with at least one shared dataset, pool the rest as "other"
@@ -260,7 +260,7 @@ sigtable2
 # 3:    log(SJR) 2.689597 2.411840  2.999341e+00
 
 # Save Table S2 complement
-# fwrite(sigtable2, "../tables/R1_S2_complement_updated.tsv", sep = "\t")
+# fwrite(sigtable2, "../tables/R1_S3_complement_updated.tsv", sep = "\t")
 
 
 
@@ -454,6 +454,6 @@ sigtable1
 # 17:    Sharer_updatedY    1.8176966 1.6797620 1.9669578
 
 # Save table S3 complement
-fwrite(sigtable1, "../tables/R1_S3_complement_updated.tsv", sep = "\t")
+# fwrite(sigtable1, "../tables/R1_S4_complement_updated.tsv", sep = "\t")
 
 
