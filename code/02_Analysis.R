@@ -88,6 +88,9 @@ y=y[order(PMID,years_since)]
 
 ## Figure 1 : observations by publication year
 
+# Dataset to produce Figure 1 is in the file saved below
+#fwrite(x, "../data/Figure1.tsv", sep = "\t")
+
 ggplot(x, aes(x=year,fill=Sharer_updated)) +
   geom_histogram(binwidth=1,colour="grey",position="dodge") +
   scale_fill_seaborn("Shared Sumstats   ", guide = guide_legend(reverse=TRUE), labels=c("No", "Yes")) +
@@ -105,6 +108,9 @@ ggplot(x, aes(x=year,fill=Sharer_updated)) +
 ## Figure 2 : Relative citations have decreased for GWAS papers over the years, with a recent trend up for 2021
 
 x[,year_ss:=paste(year,Sharer_updated)]
+
+# Dataset to produce Figure 2 is in the file saved below
+#fwrite(x, "../data/Figure2.tsv", sep = "\t")
 
 top=ggplot(x, aes(x=year,y=y)) + geom_boxplot(aes(group=year)) + geom_smooth() +
   background_grid(major="y") +
@@ -131,6 +137,10 @@ y_avg=y_avg[pubyear >= 2010 & pubyear<2019 & year >=pubyear & year < 2022]
 y_avg[,max_years:=max(years_since),by="pubyear"]
 y_rel=dcast(y_avg, year + pubyear +  years_since ~ Sharer_updated, value.var="mean_count") %>% as.data.table
 y_rel[,rel_mean_count:=Y/N]
+
+# Datasets to produce Figure 3 are in the files saved below
+# fwrite(y_rel, "../data/Figure3a.tsv", sep = "\t")
+# fwrite(y_avg, "../data/Figure3b.tsv", sep = "\t")
 
 top=ggplot(y_rel, aes(x=years_since, y=rel_mean_count)) +
   geom_path() +

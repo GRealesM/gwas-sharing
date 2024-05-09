@@ -30,10 +30,14 @@ Generated datasets (See `code/01_Preparing_data.R` for code to generate them):
 * **R1_Main_data_20221207.tsv**: Latest dataset used in our analysis. Other files named similary but with different dates correspond to previous data versions. See scripts in `code/` to learn more about their generation/usage.
 * **Full_scimago_info.tsv**: Merged SCimagoJR dataset with journal impact factors for years 2005-2021, after merging scimagojr_*.tsv files.
 * **NLM_journals.tsv**: NLM catalog with journal names, ISSN, and abbreviations.
+* **Citations_per_year_20220611.tsv**: Dataset on the number of citations obtained per article, per year since publication.
+* **PG_NG_nonsharers.tsv**: A list of 353 randomly selected papers published in PLoS Genetics or Nature Genetics, and classified by GWAS catalog as non-sharers, used for our first sharing status chek-up. The result from this analysis is shown in Supplementary Table 2.
 * **Non_sharers_all.tsv**: List of articles classified as non-sharers in GWAS catalog, input for our extended sharing search.
 * **data_found.txt**: List of articles reclassified as sharers by our extended sharing search.
-* **Citations_per_year_20220611.tsv**: Dataset on the number of citations obtained per article, per year since publication.
+
+We also provide the datasets used to generate the figures in their respective tab-separated files (ie. Figure1.tsv, Figure2.tsv, Figure3a.tsv, and Figure3b.tsv).
+
 
 
 Guillermo Reales
-2023/01/09
+2023/01/17
