@@ -1,11 +1,8 @@
 # GWAS summary statistics sharing project
 
-This repository is intended to store the data and results from the *Sharing GWAS summary statistics results in more citations: evidence from the GWAS catalog* paper, currently submitted and available as a preprint on [bioRxiv](https://www.biorxiv.org/content/10.1101/2022.09.27.509657v1)!
-
-After the first round of revision (December 2022), we have updated our manuscript and code.
+This repository is intended to store the data and results from the Reales & Wallace, 2023 *Sharing GWAS summary statistics results in more citations: evidence from the GWAS catalog* paper, published in [Communications Biology](https://www.nature.com/articles/s42003-023-04497-8).
 
 Find below the description of the main scripts and datasets used in this work. Note that this repository contains the main analysis only; see [here](https://github.com/chr1swallace/data-sharing-search) for the code and data used in the extended search for shared files.
-
 
 **Code** contains the following (updated) scripts:
 
